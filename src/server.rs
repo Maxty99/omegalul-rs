@@ -85,7 +85,7 @@ impl Server {
     }
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Chat {
     pub client_id: String,
     server: Server,
