@@ -32,7 +32,7 @@ pub async fn get_servers() -> Option<JsonValue> {
     };
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Server {
     name: String,
     interests: Vec<String>,
