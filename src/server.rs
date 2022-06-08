@@ -99,8 +99,8 @@ impl Chat {
         };
     }
 
-    pub async fn fetch_event(&mut self) -> ChatEvent {
-        let server = &mut self.server;
+    pub async fn fetch_event(&self) -> ChatEvent {
+        let server = &self.server;
         let omegle_url = format!("{}.omegle.com", server.name);
         let pair = [("id", self.client_id.clone())];
 
