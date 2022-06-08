@@ -209,7 +209,7 @@ fn as_array(value: &JsonValue) -> Vec<JsonValue> {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ChatEvent {
     Message(String),
     CommonLikes(Vec<String>),
