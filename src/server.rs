@@ -113,15 +113,17 @@ impl Chat {
         println!("{response:?}"); // Debug moment
         if let Ok(response) = response {
             if let Ok(response_text) = response.text().await {
+                println!("{response_text:?}"); // Debug moment
                 return match json::parse(&response_text) {
                     Ok(json_response) => {
                         let response_array = as_array(&json_response);
+                        println!("{response_array:?}"); // Debug moment
 
                         for event in response_array {
                             println!("{event:?}"); // Debug moment
                             let array = as_array(&event);
                             let event_name = event[0].as_str().unwrap();
-
+                            println!("{array:?}"); // Debug moment
                             return match event_name {
                                 "gotMessage" => {
                                     ChatEvent::Message(array[1].as_str().unwrap().to_owned())
