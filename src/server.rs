@@ -110,7 +110,7 @@ impl Chat {
             .form(&pair)
             .send()
             .await;
-
+        println!("{response:?}"); // Debug moment
         if let Ok(response) = response {
             if let Ok(response_text) = response.text().await {
                 return match json::parse(&response_text) {
