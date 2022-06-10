@@ -118,10 +118,11 @@ impl Chat {
                         let response_array = as_array(&json_response);
 
                         for event in response_array {
+                            println!("{event:?}"); // Debug moment
                             let array = as_array(&event);
-                            let event_name = event[0].as_str().unwrap().to_owned();
+                            let event_name = event[0].as_str().unwrap();
 
-                            return match event_name.as_str() {
+                            return match event_name {
                                 "gotMessage" => {
                                     ChatEvent::Message(array[1].as_str().unwrap().to_owned())
                                 }
