@@ -99,7 +99,7 @@ impl Chat {
         };
     }
 
-    pub async fn fetch_event(&self) -> ChatEvent {
+    pub async fn fetch_event(&self) -> Vec<ChatEvent> {
         let server = &self.server;
         let omegle_url = format!("{}.omegle.com", server.name);
         let pair = [("id", self.client_id.clone())];
@@ -110,47 +110,44 @@ impl Chat {
             .form(&pair)
             .send()
             .await;
-        println!("{response:?}"); // Debug moment
+        let mut events_list: Vec<ChatEvent> = vec![];
         if let Ok(response) = response {
             if let Ok(response_text) = response.text().await {
-                println!("{response_text:?}"); // Debug moment
-                return match json::parse(&response_text) {
+                match json::parse(&response_text) {
                     Ok(json_response) => {
                         let response_array = as_array(&json_response);
-                        println!("{response_array:?}"); // Debug moment
 
                         for event in response_array {
-                            println!("{event:?}"); // Debug moment
                             let array = as_array(&event);
                             let event_name = event[0].as_str().unwrap();
-                            println!("{array:?}"); // Debug moment
-                            return match event_name {
-                                "gotMessage" => {
-                                    ChatEvent::Message(array[1].as_str().unwrap().to_owned())
-                                }
-                                "connected" => ChatEvent::Connected,
-                                "commonLikes" => ChatEvent::CommonLikes(
+
+                            match event_name {
+                                "gotMessage" => events_list.push(ChatEvent::Message(
+                                    array[1].as_str().unwrap().to_owned(),
+                                )),
+                                "connected" => events_list.push(ChatEvent::Connected),
+                                "commonLikes" => events_list.push(ChatEvent::CommonLikes(
                                     as_array(&array[1])
                                         .iter()
                                         .map(|x| x.as_str().unwrap().to_owned())
                                         .collect(),
-                                ),
-                                "waiting" => ChatEvent::Waiting,
-                                "typing" => ChatEvent::Typing,
-                                "stoppedTyping" => ChatEvent::StoppedTyping,
-                                "strangerDisconnected" => ChatEvent::StrangerDisconnected,
-                                _ => ChatEvent::None,
-                            };
+                                )),
+                                "waiting" => events_list.push(ChatEvent::Waiting),
+                                "typing" => events_list.push(ChatEvent::Typing),
+                                "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
+                                "strangerDisconnected" => {
+                                    events_list.push(ChatEvent::StrangerDisconnected)
+                                }
+                                _ => {}
+                            }
                         }
-
-                        return ChatEvent::None;
                     }
-                    Err(_err) => ChatEvent::None,
+                    Err(_err) => {}
                 };
             }
         }
 
-        return ChatEvent::None;
+        events_list
     }
 
     pub async fn send_message(&mut self, message: &str) {
@@ -212,7 +209,7 @@ fn as_array(value: &JsonValue) -> Vec<JsonValue> {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone)]
 pub enum ChatEvent {
     Message(String),
     CommonLikes(Vec<String>),
@@ -221,5 +218,4 @@ pub enum ChatEvent {
     Typing,
     StoppedTyping,
     Waiting,
-    None,
 }
