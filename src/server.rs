@@ -48,7 +48,7 @@ impl Server {
         }
     }
 
-    pub async fn start_chat(&self) -> Option<Chat> {
+    pub async fn start_chat(&self) -> (Option<Chat>, Vec<ChatEvent>) {
         let random_id = generate_random_id();
         let omegle_url = format!("{}.omegle.com", self.name);
 
@@ -71,17 +71,52 @@ impl Server {
             .send()
             .await;
 
+        let mut events_list: Vec<ChatEvent> = vec![];
+        let mut chat: Option<Chat> = None;
         if let Ok(response) = response {
-            return match json::parse(&response.text().await.unwrap()) {
-                Ok(json) => Some(Chat::new(
-                    json["clientID"].clone().as_str().unwrap(),
-                    self.clone(),
-                )),
-                Err(_error) => None,
-            };
+            if let Ok(response_text) = response.text().await {
+                chat = match json::parse(&response_text) {
+                    Ok(json) => Some(Chat::new(
+                        json["clientID"].clone().as_str().unwrap(),
+                        self.clone(),
+                    )),
+                    Err(_error) => None,
+                };
+                match json::parse(&response_text) {
+                    Ok(json_response) => {
+                        let response_array = as_array(&json_response);
+
+                        for event in response_array {
+                            let array = as_array(&event);
+                            let event_name = event[0].as_str().unwrap();
+
+                            match event_name {
+                                "gotMessage" => events_list.push(ChatEvent::Message(
+                                    array[1].as_str().unwrap().to_owned(),
+                                )),
+                                "connected" => events_list.push(ChatEvent::Connected),
+                                "commonLikes" => events_list.push(ChatEvent::CommonLikes(
+                                    as_array(&array[1])
+                                        .iter()
+                                        .map(|x| x.as_str().unwrap().to_owned())
+                                        .collect(),
+                                )),
+                                "waiting" => events_list.push(ChatEvent::Waiting),
+                                "typing" => events_list.push(ChatEvent::Typing),
+                                "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
+                                "strangerDisconnected" => {
+                                    events_list.push(ChatEvent::StrangerDisconnected)
+                                }
+                                _ => {}
+                            }
+                        }
+                    }
+                    Err(_err) => {}
+                };
+            }
         }
 
-        return None;
+        return (chat, events_list);
     }
 }
 

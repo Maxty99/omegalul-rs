@@ -12,11 +12,12 @@ async fn main() {
         let server = &mut Server::new(server_name.as_str(), vec!["minecraft".to_string()]);
         let chat = &mut server.start_chat().await;
 
-        if let Some(chat) = chat {
+        if let (Some(chat), first_events) = chat {
             let cloned_chat = chat.clone();
-
+            let mut events = first_events.clone();
             thread::spawn(move || {
                 let cloned_chat = cloned_chat.clone();
+
                 let runtime = tokio::runtime::Builder::new_multi_thread()
                     .enable_all()
                     .build()
@@ -60,23 +61,24 @@ async fn main() {
             });
 
             loop {
-                let event = chat.fetch_event().await;
-
-                match event {
-                    ChatEvent::Message(message) => println!("Stranger: {}", &message),
-                    ChatEvent::StrangerDisconnected => {
-                        println!("The user has disconnected.")
+                for event in events {
+                    match event {
+                        ChatEvent::Message(message) => println!("Stranger: {}", &message),
+                        ChatEvent::StrangerDisconnected => {
+                            println!("The user has disconnected.")
+                        }
+                        ChatEvent::Typing => println!("Stranger is typing..."),
+                        ChatEvent::Connected => println!("You have matched with someone."),
+                        ChatEvent::CommonLikes(likes) => {
+                            println!("Oh, you 2 seem to have some things in common! {:?}", likes)
+                        }
+                        ChatEvent::Waiting => {
+                            println!("You are currently waiting for a person to match with.")
+                        }
+                        _ => (),
                     }
-                    ChatEvent::Typing => println!("Stranger is typing..."),
-                    ChatEvent::Connected => println!("You have matched with someone."),
-                    ChatEvent::CommonLikes(likes) => {
-                        println!("Oh, you 2 seem to have some things in common! {:?}", likes)
-                    }
-                    ChatEvent::Waiting => {
-                        println!("You are currently waiting for a person to match with.")
-                    }
-                    _ => (),
                 }
+                events = chat.fetch_event().await;
             }
         }
     }
