@@ -84,7 +84,7 @@ impl Server {
                 };
                 match json::parse(&response_text) {
                     Ok(json_response) => {
-                        let response_array = as_array(&json_response);
+                        let response_array = as_array(&json_response["events"]);
 
                         for event in response_array {
                             let array = as_array(&event);
