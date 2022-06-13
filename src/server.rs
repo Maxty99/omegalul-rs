@@ -1,4 +1,7 @@
+use crate::error::OmegalulError;
 use crate::id::*;
+use async_stream::try_stream;
+use futures_core::Stream;
 use json::JsonValue;
 use reqwest::Client;
 
@@ -48,7 +51,34 @@ impl Server {
         }
     }
 
-    pub async fn start_chat(&self) -> (Option<Chat>, Vec<ChatEvent>) {
+    fn parse_events(json: Vec<JsonValue>) -> Vec<ChatEvent> {
+        let mut events_list: Vec<ChatEvent> = vec![];
+        for event in json {
+            let array = as_array(&event);
+            let event_name = event[0].as_str().unwrap();
+
+            match event_name {
+                "gotMessage" => {
+                    events_list.push(ChatEvent::Message(array[1].as_str().unwrap().to_owned()))
+                }
+                "connected" => events_list.push(ChatEvent::Connected),
+                "commonLikes" => events_list.push(ChatEvent::CommonLikes(
+                    as_array(&array[1])
+                        .iter()
+                        .map(|x| x.as_str().unwrap().to_owned())
+                        .collect(),
+                )),
+                "waiting" => events_list.push(ChatEvent::Waiting),
+                "typing" => events_list.push(ChatEvent::Typing),
+                "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
+                "strangerDisconnected" => events_list.push(ChatEvent::StrangerDisconnected),
+                _ => {}
+            }
+        }
+        events_list
+    }
+
+    pub async fn start_chat(&self) -> Result<Chat, OmegalulError> {
         let random_id = generate_random_id();
         let omegle_url = format!("{}.omegle.com", self.name);
 
@@ -69,54 +99,17 @@ impl Server {
                 omegle_url, random_id, interests_str
             ))
             .send()
-            .await;
+            .await?;
 
-        let mut events_list: Vec<ChatEvent> = vec![];
-        let mut chat: Option<Chat> = None;
-        if let Ok(response) = response {
-            if let Ok(response_text) = response.text().await {
-                chat = match json::parse(&response_text) {
-                    Ok(json) => Some(Chat::new(
-                        json["clientID"].clone().as_str().unwrap(),
-                        self.clone(),
-                    )),
-                    Err(_error) => None,
-                };
-                match json::parse(&response_text) {
-                    Ok(json_response) => {
-                        let response_array = as_array(&json_response["events"]);
-
-                        for event in response_array {
-                            let array = as_array(&event);
-                            let event_name = event[0].as_str().unwrap();
-
-                            match event_name {
-                                "gotMessage" => events_list.push(ChatEvent::Message(
-                                    array[1].as_str().unwrap().to_owned(),
-                                )),
-                                "connected" => events_list.push(ChatEvent::Connected),
-                                "commonLikes" => events_list.push(ChatEvent::CommonLikes(
-                                    as_array(&array[1])
-                                        .iter()
-                                        .map(|x| x.as_str().unwrap().to_owned())
-                                        .collect(),
-                                )),
-                                "waiting" => events_list.push(ChatEvent::Waiting),
-                                "typing" => events_list.push(ChatEvent::Typing),
-                                "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
-                                "strangerDisconnected" => {
-                                    events_list.push(ChatEvent::StrangerDisconnected)
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    Err(_err) => {}
-                };
-            }
+        let response_text = response.text().await?;
+        let parsed_json = json::parse(&response_text)?;
+        let response_array = as_array(&parsed_json["events"]);
+        let events_list = Server::parse_events(response_array);
+        let id_json_value = parsed_json["clientID"].clone();
+        match id_json_value {
+            JsonValue::String(id_string) => Ok(Chat::new(id_string, self.clone(), events_list)),
+            _ => Err(OmegalulError::IdError),
         }
-
-        return (chat, events_list);
     }
 }
 
@@ -124,17 +117,19 @@ impl Server {
 pub struct Chat {
     pub client_id: String,
     server: Server,
+    initial_events: Vec<ChatEvent>,
 }
 
 impl Chat {
-    pub fn new(client_id: &str, server: Server) -> Self {
+    pub fn new(client_id: String, server: Server, initial_events: Vec<ChatEvent>) -> Self {
         return Self {
-            client_id: client_id.to_string(),
-            server: server,
+            client_id,
+            server,
+            initial_events,
         };
     }
 
-    pub async fn fetch_event(&self) -> Vec<ChatEvent> {
+    pub async fn fetch_event(&self) -> Result<Vec<ChatEvent>, OmegalulError> {
         let server = &self.server;
         let omegle_url = format!("{}.omegle.com", server.name);
         let pair = [("id", self.client_id.clone())];
@@ -144,45 +139,37 @@ impl Chat {
             .post(format!("https://{}/events", omegle_url))
             .form(&pair)
             .send()
-            .await;
-        let mut events_list: Vec<ChatEvent> = vec![];
-        if let Ok(response) = response {
-            if let Ok(response_text) = response.text().await {
-                match json::parse(&response_text) {
-                    Ok(json_response) => {
-                        let response_array = as_array(&json_response);
+            .await?;
 
-                        for event in response_array {
-                            let array = as_array(&event);
-                            let event_name = event[0].as_str().unwrap();
+        let response_text = response.text().await?;
+        let parsed_json = json::parse(&response_text)?;
 
-                            match event_name {
-                                "gotMessage" => events_list.push(ChatEvent::Message(
-                                    array[1].as_str().unwrap().to_owned(),
-                                )),
-                                "connected" => events_list.push(ChatEvent::Connected),
-                                "commonLikes" => events_list.push(ChatEvent::CommonLikes(
-                                    as_array(&array[1])
-                                        .iter()
-                                        .map(|x| x.as_str().unwrap().to_owned())
-                                        .collect(),
-                                )),
-                                "waiting" => events_list.push(ChatEvent::Waiting),
-                                "typing" => events_list.push(ChatEvent::Typing),
-                                "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
-                                "strangerDisconnected" => {
-                                    events_list.push(ChatEvent::StrangerDisconnected)
-                                }
-                                _ => {}
-                            }
-                        }
-                    }
-                    Err(_err) => {}
-                };
+        let response_array = as_array(&parsed_json);
+
+        Ok(Server::parse_events(response_array))
+    }
+
+    pub fn get_event_stream(
+        &self,
+    ) -> impl Stream<Item = Result<Vec<ChatEvent>, OmegalulError>> + '_ {
+        try_stream! {
+            let mut sent_initial = false;
+            let mut break_on_next = false;
+            loop {
+                if !sent_initial {
+                    sent_initial = true;
+                    yield self.initial_events.clone();
+                }
+                if break_on_next{
+                    break;
+                }
+                let events = self.fetch_event().await?;
+                if events.contains(&ChatEvent::StrangerDisconnected){
+                    break_on_next = true;
+                }
+                yield events;
             }
         }
-
-        events_list
     }
 
     pub async fn send_message(&mut self, message: &str) {
@@ -244,7 +231,7 @@ fn as_array(value: &JsonValue) -> Vec<JsonValue> {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ChatEvent {
     Message(String),
     CommonLikes(Vec<String>),
