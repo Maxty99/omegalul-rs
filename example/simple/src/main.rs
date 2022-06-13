@@ -10,14 +10,14 @@ async fn main() {
     if let Some(server_name) = get_random_server().await {
         println!("Connecting to {} server", server_name);
 
-        let server = &mut Server::new(server_name.as_str(), vec!["minecraft".to_string()]);
+        let server = &mut Server::new(server_name.as_str(), vec![]);
         let chat = &mut server.start_chat().await;
 
         if let Ok(chat) = chat {
             let cloned_chat = chat.clone();
             let event_stream = chat.get_event_stream();
             pin_mut!(event_stream); // needed for iteration
-            thread::spawn(move || {
+            let handle = thread::spawn(move || {
                 let cloned_chat = cloned_chat.clone();
 
                 let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -61,7 +61,7 @@ async fn main() {
                     }
                 });
             });
-
+            println!("You are currently waiting for a person to match with.");
             while let Some(Ok(events)) = event_stream.next().await {
                 for event in events {
                     match event {
@@ -74,13 +74,11 @@ async fn main() {
                         ChatEvent::CommonLikes(likes) => {
                             println!("Oh, you 2 seem to have some things in common! {:?}", likes)
                         }
-                        ChatEvent::Waiting => {
-                            println!("You are currently waiting for a person to match with.")
-                        }
                         _ => (),
                     }
                 }
             }
+            handle.join().unwrap();
         }
     }
 }
