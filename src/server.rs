@@ -82,15 +82,13 @@ impl Server {
         let random_id = generate_random_id();
         let omegle_url = format!("{}.omegle.com", self.name);
 
-        let mut interests_str = "".to_owned();
+        let interests: Vec<String> = self
+            .interests
+            .iter()
+            .map(|str| format!("\"{str}\""))
+            .collect();
 
-        for i in 0..self.interests.len() {
-            interests_str.push_str(&format!("\"{}\"", self.interests[i]));
-
-            if i != self.interests.len() - 1 {
-                interests_str.push(',');
-            }
-        }
+        let interests_str = interests.join(",");
 
         let response = self
             .client
