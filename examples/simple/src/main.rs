@@ -2,6 +2,7 @@ extern crate omegalul;
 use std::{collections::HashMap, thread};
 
 use ::std::*;
+use futures::{pin_mut, StreamExt};
 use omegalul::server::{get_random_server, ChatEvent, Server};
 
 #[tokio::main]
@@ -12,9 +13,10 @@ async fn main() {
         let server = &mut Server::new(server_name.as_str(), vec!["minecraft".to_string()]);
         let chat = &mut server.start_chat().await;
 
-        if let (Some(chat), first_events) = chat {
+        if let Ok(chat) = chat {
             let cloned_chat = chat.clone();
-            let mut events = first_events.clone();
+            let event_stream = chat.get_event_stream();
+            pin_mut!(event_stream); // needed for iteration
             thread::spawn(move || {
                 let cloned_chat = cloned_chat.clone();
 
@@ -60,7 +62,7 @@ async fn main() {
                 });
             });
 
-            loop {
+            while let Some(Ok(events)) = event_stream.next().await {
                 for event in events {
                     match event {
                         ChatEvent::Message(message) => println!("Stranger: {}", &message),
@@ -78,7 +80,6 @@ async fn main() {
                         _ => (),
                     }
                 }
-                events = chat.fetch_event().await;
             }
         }
     }
