@@ -1,5 +1,6 @@
 use std::fmt::Display;
 
+#[derive(Debug)]
 pub enum OmegalulError {
     ReqwestError(reqwest::Error),
     JsonError(json::Error),
