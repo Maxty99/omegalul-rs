@@ -170,7 +170,7 @@ impl Chat {
         }
     }
 
-    pub async fn send_message(&mut self, message: &str) {
+    pub async fn send_message(&self, message: &str) {
         self.handle_server_post(
             "send",
             &[("id", self.client_id.clone()), ("msg", message.to_owned())],
@@ -178,27 +178,27 @@ impl Chat {
         .await;
     }
 
-    pub async fn disconnect(&mut self) {
+    pub async fn disconnect(&self) {
         self.handle_server_post("disconnect", &[("id", self.client_id.clone())])
             .await;
     }
 
-    pub async fn start_typing(&mut self) {
+    pub async fn start_typing(&self) {
         self.handle_server_post("typing", &[("id", self.client_id.clone())])
             .await;
     }
 
-    pub async fn stop_typing(&mut self) {
+    pub async fn stop_typing(&self) {
         self.handle_server_post("stoppedtyping", &[("id", self.client_id.clone())])
             .await;
     }
 
     pub async fn handle_server_post<K: Serialize, V: Serialize>(
-        &mut self,
+        &self,
         path: &str,
         pair: &[(K, V)],
     ) {
-        let server = &mut self.server;
+        let server = &self.server;
         let omegle_url = format!("{}.omegle.com", server.name);
 
         handle_simple_post(
