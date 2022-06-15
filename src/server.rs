@@ -115,7 +115,7 @@ impl Server {
 pub struct Chat {
     pub client_id: String,
     server: Server,
-    initial_events: Vec<ChatEvent>,
+    pub initial_events: Vec<ChatEvent>,
 }
 
 impl Chat {
