@@ -3,11 +3,11 @@ use std::{collections::HashMap, thread};
 
 use ::std::*;
 use futures::{pin_mut, StreamExt};
-use omegalul::server::{get_random_server, ChatEvent, Server};
+use omegalul::server::{get_event_stream, get_random_server, ChatEvent, Server};
 
 #[tokio::main]
 async fn main() {
-    if let Some(server_name) = get_random_server().await {
+    if let Ok(server_name) = get_random_server().await {
         println!("Connecting to {} server", server_name);
 
         let server = &mut Server::new(server_name.as_str(), vec![]);
@@ -15,7 +15,7 @@ async fn main() {
 
         if let Ok(chat) = chat {
             let cloned_chat = chat.clone();
-            let event_stream = chat.get_event_stream();
+            let event_stream = get_event_stream(chat.clone());
             pin_mut!(event_stream); // needed for iteration
             let handle = thread::spawn(move || {
                 let cloned_chat = cloned_chat.clone();
@@ -73,6 +73,10 @@ async fn main() {
                         ChatEvent::Connected => println!("You have matched with someone."),
                         ChatEvent::CommonLikes(likes) => {
                             println!("Oh, you 2 seem to have some things in common! {:?}", likes)
+                        }
+                        ChatEvent::Error(err) => {
+                            println!("Whoops error {err}");
+                            std::process::exit(0);
                         }
                         _ => (),
                     }
