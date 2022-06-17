@@ -141,29 +141,6 @@ impl Chat {
         Ok(Server::parse_events(response_array))
     }
 
-    pub fn get_event_stream(
-        &self,
-    ) -> impl Stream<Item = Result<Vec<ChatEvent>, OmegalulError>> + '_ {
-        try_stream! {
-            let mut sent_initial = false;
-            let mut break_on_next = false;
-            loop {
-                if !sent_initial {
-                    sent_initial = true;
-                    yield self.initial_events.clone();
-                }
-                if break_on_next{
-                    break;
-                }
-                let events = self.fetch_event().await?;
-                if events.contains(&ChatEvent::StrangerDisconnected){
-                    break_on_next = true;
-                }
-                yield events;
-            }
-        }
-    }
-
     pub async fn send_message(&self, message: &str) {
         self.handle_server_post(
             "send",
@@ -220,6 +197,27 @@ fn as_array(value: &JsonValue) -> Vec<JsonValue> {
     match value {
         JsonValue::Array(array) => array.to_vec(),
         _ => vec![],
+    }
+}
+
+pub fn get_event_stream(chat: Chat) -> impl Stream<Item = Result<Vec<ChatEvent>, OmegalulError>> {
+    try_stream! {
+        let mut sent_initial = false;
+        let mut break_on_next = false;
+        loop {
+            if !sent_initial {
+                sent_initial = true;
+                yield chat.initial_events.clone();
+            }
+            if break_on_next{
+                break;
+            }
+            let events = chat.fetch_event().await?;
+            if events.contains(&ChatEvent::StrangerDisconnected){
+                break_on_next = true;
+            }
+            yield events;
+        }
     }
 }
 
