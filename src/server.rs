@@ -6,7 +6,7 @@ use json::JsonValue;
 use reqwest::Client;
 
 use rand::seq::SliceRandom;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub async fn get_random_server() -> Option<String> {
     let servers = get_servers().await;
