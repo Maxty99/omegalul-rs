@@ -63,6 +63,9 @@ impl Server {
                 "typing" => events_list.push(ChatEvent::Typing),
                 "stoppedTyping" => events_list.push(ChatEvent::StoppedTyping),
                 "strangerDisconnected" => events_list.push(ChatEvent::StrangerDisconnected),
+                "error" => {
+                    events_list.push(ChatEvent::Error(array[1].as_str().unwrap().to_owned()))
+                }
                 _ => {}
             }
         }
@@ -224,6 +227,7 @@ fn as_array(value: &JsonValue) -> Vec<JsonValue> {
 pub enum ChatEvent {
     Message(String),
     CommonLikes(Vec<String>),
+    Error(String),
     Connected,
     StrangerDisconnected,
     Typing,
