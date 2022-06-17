@@ -17,7 +17,7 @@ impl Distribution<u8> for Omeglenumeric {
     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> u8 {
         const RANGE: u32 = 34;
         const GEN_ASCII_STR_CHARSET: &[u8] = b"ABCDEFGHJKLMNPQRSTUVWXYZ\
-                0123456789";
+                23456789";
 
         loop {
             let var = rng.next_u32() >> (32 - 6);
