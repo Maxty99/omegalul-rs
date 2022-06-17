@@ -8,31 +8,22 @@ use reqwest::Client;
 use rand::seq::SliceRandom;
 use serde::Serialize;
 
-pub async fn get_random_server() -> Option<String> {
-    let servers = get_servers().await;
+pub async fn get_random_server() -> Result<String, OmegalulError> {
+    let servers = get_servers().await?;
 
-    if let Some(servers) = servers {
-        if let JsonValue::Array(array) = servers {
-            return match array.choose(&mut rand::thread_rng()) {
-                Some(random) => Some(random.as_str().unwrap().to_string()),
-                None => None,
-            };
-        }
-    }
-
-    return None;
+    return match servers.choose(&mut rand::thread_rng()) {
+        Some(random) => Ok(random.as_str().unwrap().to_string()),
+        None => Err(OmegalulError::ServersError),
+    };
 }
 
-pub async fn get_servers() -> Option<JsonValue> {
+pub async fn get_servers() -> Result<Vec<JsonValue>, OmegalulError> {
     let client = Client::new();
-    let request = client.get("https://omegle.com/status").send().await;
-
-    return match request {
-        Ok(request) => {
-            Some(json::parse(request.text().await.unwrap().as_str()).unwrap()["servers"].clone())
-        }
-        Err(_error) => None,
-    };
+    let request = client.get("https://omegle.com/status").send().await?;
+    match json::parse(&request.text().await?)?["servers"].clone() {
+        JsonValue::Array(arr) => Ok(arr),
+        _ => Err(OmegalulError::ServersError),
+    }
 }
 
 #[derive(Debug, Clone)]

@@ -5,6 +5,7 @@ pub enum OmegalulError {
     ReqwestError(reqwest::Error),
     JsonError(json::Error),
     IdError,
+    ServersError,
 }
 
 impl Display for OmegalulError {
@@ -18,6 +19,7 @@ impl Display for OmegalulError {
                 "Something went wrong with parsing the json response: {err}"
             ),
             OmegalulError::IdError => write!(f, "Could not get client I.D"),
+            OmegalulError::ServersError => write!(f, "Could not get list of servers"),
         }
     }
 }
