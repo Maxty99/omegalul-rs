@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt::Display;
 
 #[derive(Debug)]
@@ -20,6 +21,15 @@ impl Display for OmegalulError {
             ),
             OmegalulError::IdError => write!(f, "Could not get client I.D"),
             OmegalulError::ServersError => write!(f, "Could not get list of servers"),
+        }
+    }
+}
+impl Error for OmegalulError {
+    fn cause(&self) -> Option<&dyn Error> {
+        match self {
+            OmegalulError::ReqwestError(err) => Some(err),
+            OmegalulError::JsonError(err) => Some(err),
+            _ => None,
         }
     }
 }
