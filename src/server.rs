@@ -41,7 +41,9 @@ impl Server {
             client: Client::new(),
         }
     }
-
+    pub fn set_interests(&mut self, interests: Vec<String>) {
+        self.interests = interests;
+    }
     fn parse_events(json: Vec<JsonValue>) -> Vec<ChatEvent> {
         let mut events_list: Vec<ChatEvent> = vec![];
         for event in json {
