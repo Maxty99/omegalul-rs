@@ -89,7 +89,7 @@ impl Server {
         let response = self
             .client
             .post(format!(
-                "https://{}/start?caps=recaptcha2,t&firstevents=1&spid=&randid={}&lang=en&topics=[{}]",
+                "https://{}/start?caps=recaptcha2,t2&firstevents=1&spid=&randid={}&lang=en&topics=[{}]",
                 omegle_url, random_id, interests_str
             ))
             .send()
