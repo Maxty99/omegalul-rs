@@ -1,7 +1,11 @@
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
 use crate::error::OmegalulError;
 use crate::id::*;
 use async_stream::try_stream;
-use futures_core::Stream;
+//use futures_core::Stream;
+use futures::{Future, FutureExt, Stream, StreamExt};
 use json::JsonValue;
 use reqwest::Client;
 
@@ -180,6 +184,18 @@ impl Chat {
             pair,
         )
         .await;
+    }
+}
+
+impl Stream for Chat {
+    type Item = Result<Vec<ChatEvent>, OmegalulError>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        let mut future_pinned = Box::pin(self.fetch_event());
+        match future_pinned.poll_unpin(cx) {
+            Poll::Ready(events) => Poll::Ready(Some(events)),
+            Poll::Pending => Poll::Pending,
+        }
     }
 }
 
